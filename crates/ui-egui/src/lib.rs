@@ -714,7 +714,7 @@ impl SheetApp {
             "saveAs" => {
                 let suggested = self.session.active().map(|d| d.display_title()).unwrap_or_else(|| "Book1".into());
                 if self.services.pick_save.is_some() {
-                    self.ask_save(&suggested, file_dialog::Then::SaveAs);
+                    self.ask_save(&suggested, file_dialog::Then::SaveAs { close: false });
                 } else if self.services.download.is_some()
                     && let Ok(r) = self.run("file.saveBytes", json!({"format": "xlsx"}))
                     && let Some(dl) = &self.services.download

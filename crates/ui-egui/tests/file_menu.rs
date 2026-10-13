@@ -147,6 +147,40 @@ fn export_writes_the_file_once_the_save_dialog_answers() {
     let _ = std::fs::remove_dir_all(&dir);
 }
 
+/// Close › Save on a workbook that was never saved asks where to save it; the workbook closes once
+/// the save dialog answers and the file is written, and stays open when the dialog is cancelled.
+#[test]
+fn close_then_save_closes_the_workbook_once_the_save_dialog_answers() {
+    let dir = std::env::temp_dir().join(format!("gridcraft-close-save-{}", std::process::id()));
+    std::fs::create_dir_all(&dir).unwrap();
+    for (answer, closes) in [(Some(dir.join("Kept.xlsx").to_string_lossy().into_owned()), true), (None, false)] {
+        let reply = Arc::new(Mutex::new(None::<std::sync::mpsc::Sender<Option<String>>>));
+        let keep = reply.clone();
+        let mut h = harness(Services {
+            pick_save: Some(Box::new(move |_| {
+                let (answer, picked) = std::sync::mpsc::channel();
+                *keep.lock().unwrap() = Some(answer);
+                picked
+            })),
+            ..Default::default()
+        });
+        h.state_mut().run("cell.set", serde_json::json!({"cell": "A1", "input": "42"})).unwrap();
+        let uid = h.state().session.active().unwrap().uid;
+        choose(&mut h, "Close");
+        assert_eq!(h.state().dialog.as_ref().map(|d| d.name()), Some("saveChanges"));
+        click(&mut h, "Save");
+        let sender = reply.lock().unwrap().take().expect("Save asks where to save the workbook");
+        h.run_steps(3);
+        assert!(h.state().session.documents().iter().any(|d| d.uid == uid), "the workbook stays open while the dialog is up");
+        sender.send(answer).unwrap();
+        h.run_steps(3);
+        let open = h.state().session.documents().iter().any(|d| d.uid == uid);
+        assert_eq!(open, !closes, "closes once saved; a cancelled dialog keeps it open");
+    }
+    assert!(dir.join("Kept.xlsx").exists());
+    let _ = std::fs::remove_dir_all(&dir);
+}
+
 #[test]
 fn file_options_opens_the_options_page_and_pages_are_reachable_by_command() {
     let mut h = harness(Services::default());

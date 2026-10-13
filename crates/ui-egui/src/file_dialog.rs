@@ -15,7 +15,10 @@ use crate::{Picked, SheetApp};
 /// What a file dialog's answer is for.
 pub(crate) enum Then {
     Open,
-    SaveAs,
+    /// Save As; `close` closes the workbook once it is saved (Close › Save on a new workbook).
+    SaveAs {
+        close: bool,
+    },
     /// `file.exportPdf` with these params and the chosen path.
     ExportPdf(Json),
     /// File › Export: the command and the format it writes.
@@ -72,6 +75,14 @@ impl SheetApp {
         }
     }
 
+    /// Close › Save: a workbook that was never saved closes once the Save As it asked for has
+    /// saved it. A cancelled dialog keeps it open.
+    pub(crate) fn close_after_save_as(&mut self) {
+        if let Some(Pending { then: Then::SaveAs { close }, .. }) = &mut self.file_dialog {
+            *close = true;
+        }
+    }
+
     fn wait_for(&mut self, answer: Picked, then: Then) {
         let doc = self.session.active().map(|d| d.uid);
         self.file_dialog = Some(Pending { answer, then, doc });
@@ -90,16 +101,19 @@ impl SheetApp {
         let Some(path) = path else { return };
         // A save or export is for the workbook it was asked from; the menu bar still works while
         // the dialog is up, so another workbook may be active by now.
-        if !matches!(then, Then::Open) && self.session.active().map(|d| d.uid) != doc {
+        if !matches!(then, Then::Open | Then::Picture) && self.session.active().map(|d| d.uid) != doc {
             self.message = Some(("GridCraft".into(), "The workbook changed while the file dialog was open, so nothing was saved.".into()));
             return;
         }
         match then {
             Then::Open => self.open_path(&path),
-            Then::SaveAs => {
+            Then::SaveAs { close } => {
                 let path = if std::path::Path::new(&path).extension().is_none() { format!("{path}.xlsx") } else { path };
                 let saved = self.run("file.save", json!({"path": path}));
                 self.written(saved);
+                if close && self.session.active().is_some_and(|d| !d.is_dirty()) {
+                    self.run_or_alert("file.close", json!({"force": true}));
+                }
             }
             Then::ExportPdf(mut params) => {
                 // The picker may suggest a workbook extension; the export writes a PDF.

@@ -1095,6 +1095,9 @@ pub fn show(app: &mut SheetApp, ctx: &egui::Context) {
                             app.run_or_alert("file.save", json!({}));
                             if app.session.active().is_some_and(|x| !x.is_dirty()) {
                                 app.run_or_alert("file.close", json!({"force": true}));
+                            } else {
+                                // A new workbook asked where to save it: it closes once saved.
+                                app.close_after_save_as();
                             }
                             open = false;
                         }
