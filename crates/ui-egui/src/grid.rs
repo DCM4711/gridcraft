@@ -2724,13 +2724,13 @@ fn in_cell_editor(app: &mut SheetApp, ui: &mut egui::Ui, geo: &Geo, sh: &Sheet, 
     // The text sits where the cell will draw it once entered (Top, Center or Bottom), as in
     // Excel, instead of always at the top of a tall cell.
     let text_h = ui.painter().layout_no_wrap(if ed.text.is_empty() { " ".into() } else { ed.text.clone() }, font.clone(), Color32::BLACK).size().y;
-    let place = |v: VAlign| if st.align.wrap { wrapped_cell_text_y(v, erect, text_h, geo.z) } else { cell_text_y(v, erect, text_h, geo.z) };
-    let mut field = erect.shrink2(vec2(2.0, 1.0));
-    // The field (text plus the text edit's 2 px margins) stays inside the cell.
-    let room = (field.height() - text_h - 4.0).max(0.0);
-    let drop = (place(st.align.v) - place(VAlign::Top)).clamp(0.0, room);
+    // In the cell's own rectangle, as when it's drawn: the editor box can be taller.
+    let place = |v: VAlign| if st.align.wrap { wrapped_cell_text_y(v, rect, text_h, geo.z) } else { cell_text_y(v, rect, text_h, geo.z) };
+    // The field has no margin, so its top is the text's top: the y the cell draws the text at
+    // once entered, inside the editor box (a taller edit starts at its top).
+    let mut field = erect.shrink2(vec2(2.0, 0.0));
+    field.min.y = place(st.align.v).clamp(erect.top() - 2.0, (erect.bottom() - text_h).max(erect.top() - 2.0));
     let id = egui::Id::new("gridcraft.cell_editor");
-    field.min.y = (field.min.y + drop).min(field.max.y);
     let mut child = ui.new_child(egui::UiBuilder::new().max_rect(field));
     child.set_clip_rect(clip);
     crate::formula_bar::editor_widget(app, &mut child, id, font, false, erect.width() - 4.0);
