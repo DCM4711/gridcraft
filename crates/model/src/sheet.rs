@@ -163,9 +163,15 @@ pub fn chars_to_points(c: f64, dw: f64) -> f64 {
 /// padding, rounded up to 8 px. 64 for a 7 px digit, 72 for 8 px.
 pub fn base_col_width(chars: f64, dw: f64) -> f32 {
     let dw = if dw.is_finite() && dw >= 1.0 { dw } else { DEFAULT_DIGIT_WIDTH };
-    // No wider than a file can store: 255 characters (Excel's stored-width formula).
-    let widest = (((256.0 * 255.0 + (128.0 / dw).trunc()) / 256.0) * dw).trunc();
-    (((chars.clamp(0.0, 255.0) * dw + 5.0) / 8.0).ceil() * 8.0).min(widest) as f32
+    // No wider than a file can store.
+    (((chars.clamp(0.0, 255.0) * dw + 5.0) / 8.0).ceil() * 8.0).min(f64::from(widest_col_width(dw))) as f32
+}
+
+/// The widest column a file can store (points): 255 characters of the digit width `dw`, by
+/// Excel's stored-width formula. 1785 for a 7 px digit, 2040 for 8 px.
+pub fn widest_col_width(dw: f64) -> f32 {
+    let dw = if dw.is_finite() && dw >= 1.0 { dw } else { DEFAULT_DIGIT_WIDTH };
+    (((256.0 * 255.0 + (128.0 / dw).trunc()) / 256.0) * dw).trunc() as f32
 }
 
 impl Sheet {
