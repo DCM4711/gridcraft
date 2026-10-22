@@ -79,3 +79,15 @@ fn command_search_arrow_and_page_keys_move_the_selection_and_keep_the_search_foc
     assert!(after_page > 2, "PageDown moved past the third row, got {after_page}");
     assert!(h.ctx.memory(|m| m.focused()).is_some(), "the search field kept focus");
 }
+
+/// Standard Width opens at the sheet's own default (72 px in a Calibri 12 workbook), so OK
+/// without a change keeps it instead of resetting it to 64.
+#[test]
+fn standard_width_opens_at_the_sheets_default() {
+    let mut h = harness();
+    h.state_mut().run("home.defaultWidth", json!({"width": 72})).unwrap();
+    h.state_mut().open_dialog("defaultWidth", json!({}));
+    h.run_steps(2);
+    let width = h.state().dialog.as_ref().and_then(|d| d.values.get("width")).and_then(|v| v.as_f64());
+    assert_eq!(width, Some(72.0));
+}
