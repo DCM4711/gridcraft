@@ -662,7 +662,7 @@ pub fn show(app: &mut SheetApp, ui: &mut egui::Ui) {
         app.grid.touch_pan = true;
     }
     if app.grid.touch_pan && resp.dragged() && ui.input(|i| i.multi_touch().is_none()) {
-        let z = if paper { make_geo(app, view.scroll).z } else { sh.zoom as f32 / 100.0 * DISPLAY_SCALE };
+        let z = if paper { make_geo(app, view.scroll).z } else { sheet_zoom(sh) * DISPLAY_SCALE };
         let mut d = resp.drag_delta();
         if sh.right_to_left {
             d.x = -d.x;
