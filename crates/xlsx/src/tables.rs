@@ -308,7 +308,8 @@ pub fn col_width_to_px(w: f64, dw: f64) -> f32 {
 /// Model width (px) → stored column width, in characters of the digit width `dw`.
 pub fn px_to_col_width(px: f32, dw: f64) -> f64 {
     let dw = if dw.is_finite() && dw >= 1.0 { dw } else { gridcraft_model::DEFAULT_DIGIT_WIDTH };
-    let px = (px.max(0.0) as f64).round().min(1790.0);
+    // The widest column a file can hold: 255 characters at this digit width.
+    let px = (px.max(0.0) as f64).round().min(f64::from(col_width_to_px(255.0, dw)));
     let back = |w: f64| col_width_to_px(w, dw) as f64;
     let chars = if px > dw + 5.0 { ((px - 5.0) / dw * 100.0 + 0.5).trunc() / 100.0 } else { px / (dw + 5.0) };
     let w = ((chars * dw + 5.0) / dw * 256.0).trunc() / 256.0;
@@ -347,6 +348,11 @@ mod tests {
             for px in 0..400 {
                 assert_eq!(col_width_to_px(px_to_col_width(px as f32, dw), dw), px as f32, "px {px} at {dw} px digits");
             }
+        }
+        // The widest column, 255 characters, survives a save at every digit width.
+        for dw in [7.0, 8.0, 12.0] {
+            let widest = col_width_to_px(255.0, dw);
+            assert_eq!(col_width_to_px(px_to_col_width(widest, dw), dw), widest, "255 characters at {dw} px digits");
         }
         // A broken digit width falls back to 7 px instead of dividing by zero.
         assert_eq!(col_width_to_px(9.140625, 0.0), 64.0);
