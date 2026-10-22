@@ -355,6 +355,10 @@ mod tests {
             let widest = col_width_to_px(255.0, dw);
             assert_eq!(col_width_to_px(px_to_col_width(widest, dw), dw), widest, "255 characters at {dw} px digits");
             assert!(px_to_col_width(widest, dw) <= 255.0, "stored within Excel's 255 characters at {dw} px digits");
+            // A `baseColWidth` of 255 reads no wider than that, so a save keeps it.
+            let base = gridcraft_model::base_col_width(255.0, dw);
+            assert!(base <= widest, "baseColWidth 255 at {dw} px digits: {base} > {widest}");
+            assert_eq!(col_width_to_px(px_to_col_width(base, dw), dw), base, "baseColWidth 255 round trip at {dw} px digits");
         }
         // A broken digit width falls back to 7 px instead of dividing by zero.
         assert_eq!(col_width_to_px(9.140625, 0.0), 64.0);
