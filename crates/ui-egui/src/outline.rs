@@ -35,7 +35,7 @@ impl Axis {
 
 /// One lane's width at this zoom (`zoom` is the sheet zoom, 1.0 = 100%).
 pub fn lane(zoom: f32) -> f32 {
-    (LANE * zoom.max(0.75)).round()
+    (LANE * crate::grid::heading_zoom(zoom)).round()
 }
 
 /// Thickness of the band for an outline `levels` deep: a lane per level plus one for the level

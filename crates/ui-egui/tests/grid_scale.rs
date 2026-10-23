@@ -71,3 +71,18 @@ fn grid_size_scales_cells_and_headings_but_not_the_zoom() {
     let ui: UiState = serde_json::from_str(r#"{"dark": true}"#).unwrap();
     assert_eq!(ui.grid_scale, 100);
 }
+
+/// Below 100% the headings shrink with the cells: the 75% floor that keeps them readable when
+/// zoomed out applies to the workbook zoom, before the Cell grid size.
+#[test]
+fn headings_shrink_with_a_small_grid_size() {
+    let _reset = Reset;
+    let mut h = harness();
+    h.run_steps(2);
+    let before = geo(&h);
+    h.state_mut().run("view.gridScale", json!({"percent": 50})).unwrap();
+    h.run_steps(2);
+    let after = geo(&h);
+    assert!((after.header_h - before.header_h * 0.5).abs() <= 1.0, "column headings at 50%: {} → {}", before.header_h, after.header_h);
+    assert!((after.header_w - before.header_w * 0.5).abs() <= 1.0, "row headings at 50%: {} → {}", before.header_w, after.header_w);
+}

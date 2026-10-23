@@ -39,6 +39,14 @@ pub fn grid_scale() -> f32 {
     GRID_SCALE.with(|g| g.get())
 }
 
+/// The scale headings, outline bands and their padding are drawn at for the grid zoom `zoom`
+/// (see [`sheet_zoom`]): the workbook zoom no smaller than 75% (so they stay readable when zoomed
+/// out), times the Cell grid size, which scales them with the cells.
+pub fn heading_zoom(zoom: f32) -> f32 {
+    let grid = grid_scale();
+    (zoom / grid).max(0.75) * grid
+}
+
 /// `sh`'s zoom as a factor, times the Cell grid size preference: the zoom the grid is drawn at.
 pub fn sheet_zoom(sh: &Sheet) -> f32 {
     (sh.zoom as f32 / 100.0).clamp(0.1, 4.0) * grid_scale()
@@ -267,12 +275,12 @@ impl Geo {
     pub fn new(sh: &Sheet, rect: Rect, scroll: egui::Vec2) -> Geo {
         let zoom = sheet_zoom(sh);
         let z = zoom * DISPLAY_SCALE;
-        let header_h = if sh.show_headings { (COL_HEADER_H * zoom.max(0.75)).round() } else { 0.0 };
+        let header_h = if sh.show_headings { (COL_HEADER_H * heading_zoom(zoom)).round() } else { 0.0 };
         let ri = std::sync::Arc::new(LineIndex::new(&sh.rows, sh.default_row_height, MAX_ROWS));
         let ci = std::sync::Arc::new(LineIndex::new(&sh.cols, sh.default_col_width, MAX_COLS));
         let last_row = ri.at((scroll.y + rect.height() / z) as f64 + 200.0) + 1;
         let digits = (last_row as f32).log10().floor() as i32 + 1;
-        let header_w = if sh.show_headings { ((digits.max(2) as f32 * 7.0 + 14.0) * zoom.max(0.75)).round() } else { 0.0 };
+        let header_w = if sh.show_headings { ((digits.max(2) as f32 * 7.0 + 14.0) * heading_zoom(zoom)).round() } else { 0.0 };
         let (fr, fc) = sh.freeze.unwrap_or((0, 0));
         let frozen_w = (ci.start(fc) as f32) * z;
         let frozen_h = (ri.start(fr) as f32) * z;
@@ -1928,7 +1936,7 @@ pub(crate) fn paint_headers(
                         // The name is cut off at the button, as a cell's text is at its neighbour.
                         let end = h.button.map_or(cr.right(), |b| b.left()) - 2.0;
                         let room = Rect::from_min_max(cr.min, pos2(end.max(cr.left()), cr.bottom())).intersect(pc.clip_rect());
-                        let pad = 4.0 * (geo.z / DISPLAY_SCALE).max(0.75);
+                        let pad = 4.0 * heading_zoom(geo.z / DISPLAY_SCALE);
                         pc.with_clip_rect(room).text(pos2(cr.left() + pad, cr.center().y), Align2::LEFT_CENTER, &h.name, font.clone(), color);
                         if let Some(b) = h.button {
                             paint_filter_button(&pc, b, h.filtered);
