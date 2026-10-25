@@ -3251,9 +3251,18 @@ fn in_cell_editor(app: &mut SheetApp, ui: &mut egui::Ui, geo: &Geo, sh: &Sheet, 
     painter.rect_stroke(erect.expand(1.0), 0.0, Stroke::new(2.0, Tokens::get(ui.ctx()).sel_border), StrokeKind::Middle);
     // The text sits where the cell will draw it once entered (Top, Center or Bottom), as in
     // Excel, instead of always at the top of a tall cell.
-    let text_h = ui.painter().layout_no_wrap(if ed.text.is_empty() { " ".into() } else { ed.text.clone() }, font.clone(), Color32::BLACK).size().y;
+    // Measured as the cell lays it out: wrapped text at the cell's wrap width (padding and
+    // indent off), so a wrapped Middle or Bottom cell puts it at the same height.
+    let sample = if ed.text.is_empty() { " ".to_string() } else { ed.text.clone() };
+    let text_h = if st.align.wrap || st.align.h == HAlign::Justify {
+        let wrap_w = (rect.width() - 2.0 * 2.5 * geo.z - st.align.indent as f32 * 9.0 * geo.z).max(4.0);
+        ui.painter().layout_job(egui::text::LayoutJob::simple(sample, font.clone(), Color32::BLACK, wrap_w)).size().y
+    } else {
+        ui.painter().layout_no_wrap(sample, font.clone(), Color32::BLACK).size().y
+    };
     // In the cell's own rectangle, as when it's drawn: the editor box can be taller.
-    let place = |v: VAlign| if st.align.wrap { wrapped_cell_text_y(v, rect, text_h, geo.z) } else { cell_text_y(v, rect, text_h, geo.z) };
+    let wrapped = st.align.wrap || st.align.h == HAlign::Justify;
+    let place = |v: VAlign| if wrapped { wrapped_cell_text_y(v, rect, text_h, geo.z) } else { cell_text_y(v, rect, text_h, geo.z) };
     // The field has no margin, so its top is the text's top: the y the cell draws the text at
     // once entered, inside the editor box (a taller edit starts at its top).
     let mut field = erect.shrink2(vec2(2.0, 0.0));

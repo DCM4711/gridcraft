@@ -20,6 +20,11 @@ fn frame(ctx: &Context, app: &mut SheetApp) -> egui::FullOutput {
 
 /// Where the text "Abc" shows inside B3 (its galley's top-left corner).
 fn text_pos(ctx: &Context, app: &mut SheetApp) -> Pos2 {
+    text_pos_of(ctx, app, "Abc")
+}
+
+/// Where `text` shows inside B3 (its galley's top-left corner).
+fn text_pos_of(ctx: &Context, app: &mut SheetApp, text: &str) -> Pos2 {
     for _ in 0..3 {
         frame(ctx, app);
     }
@@ -31,10 +36,10 @@ fn text_pos(ctx: &Context, app: &mut SheetApp) -> Pos2 {
         .iter()
         .rev()
         .find_map(|s| match &s.shape {
-            egui::Shape::Text(t) if t.galley.text() == "Abc" && cell.expand(4.0).contains(t.pos) => Some(t.pos),
+            egui::Shape::Text(t) if t.galley.text() == text && cell.expand(4.0).contains(t.pos) => Some(t.pos),
             _ => None,
         })
-        .expect("Abc drawn in B3")
+        .unwrap_or_else(|| panic!("{text:?} drawn in B3"))
 }
 
 #[test]
@@ -62,5 +67,27 @@ fn typed_text_sits_where_the_entered_text_is_drawn() {
                 entered.y
             );
         }
+    }
+}
+
+/// Wrapped text sits where the wrapped cell draws it: its height is measured at the cell's wrap
+/// width, not as one line (Middle and Bottom in a tall row).
+#[test]
+fn typed_wrapped_text_sits_where_the_entered_text_is_drawn() {
+    let text = "Abc def ghi jkl mno";
+    for align in ["home.alignMiddle", "home.alignBottom"] {
+        let mut session = Session::new();
+        session.new_workbook();
+        session.execute("home.rowHeight", json!({"rows": "3:3", "height": 90})).unwrap();
+        session.execute(align, json!({"range": "B3"})).unwrap();
+        session.execute("home.wrapText", json!({"range": "B3"})).unwrap();
+        session.execute("cell.set", json!({"cell": "B3", "input": text})).unwrap();
+        session.execute("selection.set", json!({"cell": "B3"})).unwrap();
+        let ctx = Context::default();
+        let mut app = SheetApp::new(session, Default::default());
+        let entered = text_pos_of(&ctx, &mut app, text);
+        app.begin_edit(None, false);
+        let typed = text_pos_of(&ctx, &mut app, text);
+        assert!((typed.y - entered.y).abs() < 0.5, "{align}: typed at y {} but drawn at y {}", typed.y, entered.y);
     }
 }
